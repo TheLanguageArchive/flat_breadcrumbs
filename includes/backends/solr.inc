@@ -75,17 +75,29 @@ class SolrBackend
         $this->data = [
 
             'object'    => $this->normalizeDocument($object),
+            'parents'   => [],
             'ancestors' => [],
             'tree'      => [],
         ];
-
         if (count($this->data['object']['ancestors']) > 0) {
 
             // ancestors found, fetching data
-            $ancestors = $this->getData($this->data['object']['ancestors']);
+            $pids = array_merge($this->data['object']['ancestors'], $this->data['object']['parents']);
+            $data = $this->getData($pids);
 
-            // and normalizing ancestors
-            $this->data['ancestors'] = array_map([$this, 'normalizeDocument'], $ancestors['response']['docs']);
+            // normalizing ancestors and parents
+            foreach ($data['response']['docs'] as $document) {
+
+                $normalized = $this->normalizeDocument($document);
+
+                if (in_array($normalized['pid'], $this->data['object']['ancestors'])) {
+                    $this->data['ancestors'][] = $normalized;
+                }
+
+                if (in_array($normalized['pid'], $this->data['object']['parents'])) {
+                    $this->data['parents'][] = $normalized;
+                }
+            }
 
             // assigning ranks for ancestors to preserve order of ancestors
             $rank  = 0;
@@ -113,7 +125,12 @@ class SolrBackend
         $current           = $this->data['object'];
         $current['active'] = true;
 
-        // and adding current object to tree
+        // adding parents if available
+        foreach ($this->data['parents'] as $parent) {
+            $this->data['tree'][] = $parent;
+        }
+
+        // adding current object to tree
         $this->data['tree'][] = $current;
 
         // and finally returning data
@@ -156,6 +173,8 @@ class SolrBackend
             'label'     => $document['fgs_label_s'],
             'roles'     => $document['policy_datastream_roles_ms'] ?? [],
             'users'     => $document['policy_datastream_users_ms'] ?? [],
+            'parents'   => $document['RELS_EXT_isConstituentOf_uri_ms'] ?? [],
+            'children'  => $document['compound_children_ms'] ?? [],
             'ancestors' => $document['ancestors_ms'] ?? [],
             'rank'      => 0,
             'active'    => false,
@@ -212,7 +231,7 @@ class SolrBackend
         $params = [
 
             'sort' => 'fgs_label_ss asc',
-            'fl'   => 'PID, fgs_label_s, policy_datastream_roles_ms, policy_datastream_users_ms, ancestors_ms',
+            'fl'   => 'PID, fgs_label_s, policy_datastream_roles_ms, policy_datastream_users_ms, ancestors_ms, RELS_EXT_isConstituentOf_uri_ms, compound_children_ms',
             'fq'   => [
                 format_string('({!terms f=PID}!pids)', ['!pids' => implode(',', $pids)]),
             ],
