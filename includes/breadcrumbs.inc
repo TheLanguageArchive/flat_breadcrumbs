@@ -53,16 +53,14 @@ class Breadcrumbs
     {
         $backend     = SolrBackend::create();
         $data        = $backend->fetch($pid);
-        $breadcrumbs = [];
-        $root        = flat_breadcrumbs_db_get_root();
-
-        if (count($data['tree']) > 0) {
-
-            // if current object has ancestors, prepend root
-            $breadcrumbs[] = $root['link'];
-        }
+        $exclusion   = flat_breadcrumbs_exclusion_list();
+        $breadcrumbs = flat_breadcrumbs_initialize_breadcrumbs();
 
         foreach ($data['tree'] as $item) {
+
+            if (in_array($item['pid'], $exclusion)) {
+                continue;
+            }
 
             if (false === $item['active']) {
 

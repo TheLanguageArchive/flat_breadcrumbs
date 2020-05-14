@@ -2,7 +2,61 @@
 use TLA\FLAT\Breadcrumbs\Breadcrumbs;
 use TLA\FLAT\Breadcrumbs\Exception\AlreadyFetchedException;
 
+define('FLAT_BREADCRUMBS_DEFAULT_HOME_LABEL', 'Archive');
 module_load_include('inc', 'flat_breadcrumbs', 'includes/loads');
+
+/**
+ * Islandora sets up breadcrumbs using the title callback, which means
+ * setting up breadcrumbs happens multiple times in the same request.
+ * We have to override this to prevent duplicate queries in the same request.
+ *
+ * @param AbstractObject $object
+ * @return string
+ */
+function flat_breadcrumbs_drupal_title(AbstractObject $object) {
+
+    try {
+        drupal_set_breadcrumb(Breadcrumbs::get($object->id));
+    } catch (AlreadyFetchedException $e) {
+        // already fetched breadcrumbs, ignore request
+    }
+
+    return $object->label;
+}
+
+/**
+ * Initializing breadcrumbs
+ *
+ * @return array
+ */
+function flat_breadcrumbs_initialize_breadcrumbs() {
+
+    $root  = variable_get('islandora_repository_pid', 'islandora:root');
+    $label = variable_get('flat_breadcrumbs_home_label', FLAT_BREADCRUMBS_DEFAULT_HOME_LABEL);
+
+    return [
+
+        l(t('Home'), '<front>'),
+        l($label, 'islandora'),
+    ];
+}
+
+/**
+ * Getting exclusion list
+ *
+ * @return array
+ */
+function flat_breadcrumbs_exclusion_list() {
+
+    $root = variable_get('islandora_repository_pid', 'islandora:root');
+
+    $exclusion   = explode("\n", variable_get('flat_breadcrumbs_exclusion_list', ''));
+    $exclusion[] = $root;
+
+    // removing empty exclusions and returning clean array
+    return array_values(array_filter($exclusion));
+}
+
 
 /**
  * Implements hook_islandora_breadcrumbs_backends().
@@ -25,25 +79,6 @@ function flat_breadcrumbs_islandora_breadcrumbs_backends() {
 }
 
 /**
- * Islandora sets up breadcrumbs using the title callback, which means
- * setting up breadcrumbs happens multiple times in the same request.
- * We have to override this to prevent duplicate queries in the same request.
- *
- * @param AbstractObject $object
- * @return string
- */
-function flat_breadcrumbs_drupal_title(AbstractObject $object) {
-
-    try {
-        drupal_set_breadcrumb(Breadcrumbs::get($object->id));
-    } catch (AlreadyFetchedException $e) {
-        // already fetched breadcrumbs, ignore request
-    }
-
-    return $object->label;
-}
-
-/**
  * Overriding title callback to ensure fetching breadcrumbs happens only once in a request
  *
  * @param array $items
@@ -51,4 +86,43 @@ function flat_breadcrumbs_drupal_title(AbstractObject $object) {
  */
 function flat_breadcrumbs_menu_alter(&$items) {
     $items['islandora/object/%islandora_object']['title callback'] = 'flat_breadcrumbs_drupal_title';
+}
+
+/**
+ * Implements hook_permission().
+ *
+ * @return array
+ */
+function flat_breadcrumbs_permission() {
+
+    return [
+
+        'admin deposit module' => [
+
+            'title' => t('Administration of the FLAT Breadcrumbs module'),
+            'description' => t('All administrative tasks'),
+            'restrict access' => true,
+        ],
+    ];
+}
+
+/**
+ * Setting up admin configuration menu
+ *
+ * @return array
+ */
+function flat_breadcrumbs_menu() {
+
+    return [
+
+        'admin/config/flat_deposit/flat_breadcrumbs' => [
+
+            'title'            => t('Configure FLAT Breadcrumbs'),
+            'type'             => MENU_LOCAL_TASK,
+            'page callback'    => 'drupal_get_form',
+            'page arguments'   => ['flat_breadcrumbs_admin_form'],
+            'access arguments' => ['admin flat breadcrumbs module'],
+            'file'             => 'includes/admin.inc',
+        ],
+    ];
 }

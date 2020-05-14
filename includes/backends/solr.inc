@@ -79,10 +79,10 @@ class SolrBackend
             'tree'      => [],
         ];
 
-        if (count($object['ancestors_ms']) > 0) {
+        if (count($this->data['object']['ancestors']) > 0) {
 
             // ancestors found, fetching data
-            $ancestors = $this->getData($object['ancestors_ms']);
+            $ancestors = $this->getData($this->data['object']['ancestors']);
 
             // and normalizing ancestors
             $this->data['ancestors'] = array_map([$this, 'normalizeDocument'], $ancestors['response']['docs']);
@@ -92,25 +92,22 @@ class SolrBackend
         $rank  = 0;
         $ranks = [];
 
-        if (isset($object['ancestors_ms'])) {
+        foreach ($this->data['object']['ancestors'] as $pid)  {
 
-            foreach ($object['ancestors_ms'] as $pid)  {
-
-                $rank       += 1;
-                $ranks[$pid] = $rank;
-            }
-
-            foreach ($this->data['ancestors'] as $key => $ancestor) {
-                $this->data['ancestors'][$key]['rank'] = $ranks[$ancestor['pid']] ?? 0;
-            }
-
-            // sorting tree
-            $this->data['tree'] = $this->data['ancestors'];
-
-            usort($this->data['tree'], function($a, $b) {
-                return $b['rank'] <=> $a['rank'];
-            });
+            $rank       += 1;
+            $ranks[$pid] = $rank;
         }
+
+        foreach ($this->data['ancestors'] as $key => $ancestor) {
+            $this->data['ancestors'][$key]['rank'] = $ranks[$ancestor['pid']] ?? 0;
+        }
+
+        // sorting tree
+        $this->data['tree'] = $this->data['ancestors'];
+
+        usort($this->data['tree'], function($a, $b) {
+            return $b['rank'] <=> $a['rank'];
+        });
 
         // setting current object to active
         $current           = $this->data['object'];
