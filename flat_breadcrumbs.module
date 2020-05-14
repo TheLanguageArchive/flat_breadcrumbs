@@ -1,0 +1,54 @@
+<?php
+use TLA\FLAT\Breadcrumbs\Breadcrumbs;
+use TLA\FLAT\Breadcrumbs\Exception\AlreadyFetchedException;
+
+module_load_include('inc', 'flat_breadcrumbs', 'includes/loads');
+
+/**
+ * Implements hook_islandora_breadcrumbs_backends().
+ *
+ * @return array
+ */
+function flat_breadcrumbs_islandora_breadcrumbs_backends() {
+
+    $module_path = drupal_get_path('module', 'flat_breadcrumbs');
+
+    return [
+
+        'flat_breadcrumbs_solr_backend' => [
+
+            'title'    => t('FLAT Performant Solr Breadcrumbs'),
+            'callable' => 'flat_breadcrumbs_solr_backend',
+            'file'     => $module_path . '/includes/backends.inc',
+        ],
+    ];
+}
+
+/**
+ * Islandora sets up breadcrumbs using the title callback, which means
+ * setting up breadcrumbs happens multiple times in the same request.
+ * We have to override this to prevent duplicate queries in the same request.
+ *
+ * @param AbstractObject $object
+ * @return string
+ */
+function flat_breadcrumbs_drupal_title(AbstractObject $object) {
+
+    try {
+        drupal_set_breadcrumb(Breadcrumbs::get($object->id));
+    } catch (AlreadyFetchedException $e) {
+        // already fetched breadcrumbs, ignore request
+    }
+
+    return $object->label;
+}
+
+/**
+ * Overriding title callback to ensure fetching breadcrumbs happens only once in a request
+ *
+ * @param array $items
+ * @return void
+ */
+function flat_breadcrumbs_menu_alter(&$items) {
+    $items['islandora/object/%islandora_object']['title callback'] = 'flat_breadcrumbs_drupal_title';
+}

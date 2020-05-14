@@ -1,0 +1,7 @@
+name = FLAT Breadcrumbs
+description = "Providing performant Solr based breadcrumbs"
+configure = admin/config/flat_deposit/flat_breadcrumbs
+version = 7.x-1.10
+core = 7.x
+dependencies[] = islandora_solr
+dependencies[] = flat_deposit
