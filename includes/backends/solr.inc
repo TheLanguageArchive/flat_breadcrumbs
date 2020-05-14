@@ -167,13 +167,18 @@ class SolrBackend
      */
     private function normalizeDocument(array $document): array
     {
+        $parents = $document['RELS_EXT_isConstituentOf_uri_ms'] ?? [];
+        $parents = array_map(function($parent) {
+            return str_replace('info:fedora/', '', $parent);
+        }, $parents);
+
         return [
 
             'pid'       => $document['PID'],
             'label'     => $document['fgs_label_s'],
             'roles'     => $document['policy_datastream_roles_ms'] ?? [],
             'users'     => $document['policy_datastream_users_ms'] ?? [],
-            'parents'   => $document['RELS_EXT_isConstituentOf_uri_ms'] ?? [],
+            'parents'   => $parents,
             'children'  => $document['compound_children_ms'] ?? [],
             'ancestors' => $document['ancestors_ms'] ?? [],
             'rank'      => 0,
