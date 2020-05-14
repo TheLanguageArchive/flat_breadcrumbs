@@ -25,13 +25,12 @@ function flat_breadcrumbs_drupal_title(AbstractObject $object) {
 }
 
 /**
- * Initializing breadcrumbs
+ * Default breadcrumbs
  *
  * @return array
  */
-function flat_breadcrumbs_initialize_breadcrumbs() {
+function flat_breadcrumbs_default_breadcrumbs() {
 
-    $root  = variable_get('islandora_repository_pid', 'islandora:root');
     $label = variable_get('flat_breadcrumbs_home_label', FLAT_BREADCRUMBS_DEFAULT_HOME_LABEL);
 
     return [
@@ -48,10 +47,8 @@ function flat_breadcrumbs_initialize_breadcrumbs() {
  */
 function flat_breadcrumbs_exclusion_list() {
 
-    $root = variable_get('islandora_repository_pid', 'islandora:root');
-
-    $exclusion   = explode("\n", variable_get('flat_breadcrumbs_exclusion_list', ''));
-    $exclusion[] = $root;
+    // preparing exclusing list
+    $exclusion = explode("\n", variable_get('flat_breadcrumbs_exclusion_list', ''));
 
     // removing empty exclusions and returning clean array
     return array_values(array_filter($exclusion));

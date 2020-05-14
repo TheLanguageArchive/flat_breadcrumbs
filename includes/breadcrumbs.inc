@@ -54,20 +54,36 @@ class Breadcrumbs
         $backend     = SolrBackend::create();
         $data        = $backend->fetch($pid);
         $exclusion   = flat_breadcrumbs_exclusion_list();
-        $breadcrumbs = flat_breadcrumbs_initialize_breadcrumbs();
+        $root        = variable_get('islandora_repository_pid', 'islandora:root');
+        $breadcrumbs = [];
 
+        $ignore = true;
         foreach ($data['tree'] as $item) {
+
+            if (true === $ignore) {
+
+                // ignoring tree until root
+                if ($item['pid'] === $root) {
+                    $ignore = false;
+                }
+
+                continue;
+            }
 
             if (in_array($item['pid'], $exclusion)) {
                 continue;
             }
 
-            if (false === $item['active']) {
+            $breadcrumbs[] = l($item['label'], 'islandora/object/' . $item['pid']);
+        }
 
-                // only generating breadcrumb link for inactive objects
-                // islandora adds current active object to breadcrumb automatically
-                $breadcrumbs[] = l($item['label'], 'islandora/object/' . $item['pid']);
-            }
+        if (count($breadcrumbs) > 0) {
+
+            // breadcrumbs found, adding default breadcrumbs
+            $breadcrumbs = array_merge(flat_breadcrumbs_default_breadcrumbs(), $breadcrumbs);
+
+            // and removing last breadcrumb, because it is active
+            array_pop($breadcrumbs);
         }
 
         return $breadcrumbs;

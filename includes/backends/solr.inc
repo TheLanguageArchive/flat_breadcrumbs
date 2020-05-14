@@ -86,28 +86,28 @@ class SolrBackend
 
             // and normalizing ancestors
             $this->data['ancestors'] = array_map([$this, 'normalizeDocument'], $ancestors['response']['docs']);
+
+            // assigning ranks for ancestors to preserve order of ancestors
+            $rank  = 0;
+            $ranks = [];
+
+            foreach ($this->data['object']['ancestors'] as $pid)  {
+
+                $rank       += 1;
+                $ranks[$pid] = $rank;
+            }
+
+            foreach ($this->data['ancestors'] as $key => $ancestor) {
+                $this->data['ancestors'][$key]['rank'] = $ranks[$ancestor['pid']] ?? 0;
+            }
+
+            // sorting tree
+            $this->data['tree'] = $this->data['ancestors'];
+
+            usort($this->data['tree'], function($a, $b) {
+                return $b['rank'] <=> $a['rank'];
+            });
         }
-
-        // assigning ranks for ancestors to preserve order of ancestors
-        $rank  = 0;
-        $ranks = [];
-
-        foreach ($this->data['object']['ancestors'] as $pid)  {
-
-            $rank       += 1;
-            $ranks[$pid] = $rank;
-        }
-
-        foreach ($this->data['ancestors'] as $key => $ancestor) {
-            $this->data['ancestors'][$key]['rank'] = $ranks[$ancestor['pid']] ?? 0;
-        }
-
-        // sorting tree
-        $this->data['tree'] = $this->data['ancestors'];
-
-        usort($this->data['tree'], function($a, $b) {
-            return $b['rank'] <=> $a['rank'];
-        });
 
         // setting current object to active
         $current           = $this->data['object'];
