@@ -79,11 +79,11 @@ class SolrBackend
             'ancestors' => [],
             'tree'      => [],
         ];
+
         if (count($this->data['object']['ancestors']) > 0) {
 
             // ancestors found, fetching data
-            $pids = array_merge($this->data['object']['ancestors'], $this->data['object']['parents']);
-            $data = $this->getData($pids);
+            $data = $this->getData(array_unique(array_merge($this->data['object']['ancestors'], $this->data['object']['parents'])));
 
             // normalizing ancestors and parents
             foreach ($data['response']['docs'] as $document) {
@@ -93,7 +93,6 @@ class SolrBackend
                 if (in_array($normalized['pid'], $this->data['object']['ancestors'])) {
                     $this->data['ancestors'][] = $normalized;
                 }
-
                 if (in_array($normalized['pid'], $this->data['object']['parents'])) {
                     $this->data['parents'][] = $normalized;
                 }
@@ -125,7 +124,7 @@ class SolrBackend
         $current           = $this->data['object'];
         $current['active'] = true;
 
-        // adding parents if available
+        // adding parents to tree
         foreach ($this->data['parents'] as $parent) {
             $this->data['tree'][] = $parent;
         }
@@ -167,10 +166,37 @@ class SolrBackend
      */
     private function normalizeDocument(array $document): array
     {
-        $parents = $document['RELS_EXT_isConstituentOf_uri_ms'] ?? [];
-        $parents = array_map(function($parent) {
-            return str_replace('info:fedora/', '', $parent);
-        }, $parents);
+        $prefixRemover = function($pid) {
+            return str_replace('info:fedora/', '', $pid);
+        };
+
+        // compound child should show his parent in the breadcrumbs
+        $parents = array_unique($document['RELS_EXT_isConstituentOf_uri_ms'] ?? []);
+        $parents = array_map($prefixRemover, $parents);
+
+        // object has multiple collections connected, this will only choose the first
+        // to show in the breadcrumbs
+        $collections = $document['RELS_EXT_isMemberOfCollection_uri_ms'] ?? [];
+        $collections = array_unique($collections);
+        $collections = array_map($prefixRemover, $collections);
+        $chosen      = count($collections) >= 1 ? $collections[0] : null;
+
+        $rawAncestors = array_unique($document['ancestors_ms'] ?? []);
+        $ancestors    = [];
+
+        foreach ($rawAncestors as $ancestor) {
+
+            if (in_array($ancestor, $collections)) {
+
+                // only keep chosen collection
+                if ($chosen === $ancestor) {
+                    $ancestors[] = $ancestor;
+                }
+
+            } else {
+                $ancestors[] = $ancestor;
+            }
+        }
 
         return [
 
@@ -180,7 +206,7 @@ class SolrBackend
             'users'     => $document['policy_datastream_users_ms'] ?? [],
             'parents'   => $parents,
             'children'  => $document['compound_children_ms'] ?? [],
-            'ancestors' => $document['ancestors_ms'] ?? [],
+            'ancestors' => $ancestors,
             'rank'      => 0,
             'active'    => false,
         ];
@@ -236,7 +262,7 @@ class SolrBackend
         $params = [
 
             'sort' => 'fgs_label_ss asc',
-            'fl'   => 'PID, fgs_label_s, policy_datastream_roles_ms, policy_datastream_users_ms, ancestors_ms, RELS_EXT_isConstituentOf_uri_ms, compound_children_ms',
+            'fl'   => 'PID, fgs_label_s, policy_datastream_roles_ms, policy_datastream_users_ms, ancestors_ms, RELS_EXT_isMemberOfCollection_uri_ms, RELS_EXT_isConstituentOf_uri_ms, compound_children_ms',
             'fq'   => [
                 format_string('({!terms f=PID}!pids)', ['!pids' => implode(',', $pids)]),
             ],

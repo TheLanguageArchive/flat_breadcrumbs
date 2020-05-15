@@ -58,6 +58,7 @@ class Breadcrumbs
         $breadcrumbs = [];
 
         $ignore = true;
+
         foreach ($data['tree'] as $item) {
 
             if (true === $ignore) {
